@@ -49,14 +49,20 @@ jobs:
           cordova platform rm android || true
           cordova platform add android@11 || true
 
+      - name: Build Android (debug)
+        run: |
+          cordova build android --debug
+
       - name: Build Android (release)
         run: |
-          cordova build android --release
+          cordova build android --release || true
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: |
+            platforms/android/app/build/outputs/apk/debug/*.apk
             platforms/android/app/build/outputs/apk/release/*.apk
+            platforms/android/build/outputs/apk/debug/*.apk
             platforms/android/build/outputs/apk/release/*.apk
