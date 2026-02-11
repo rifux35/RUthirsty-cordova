@@ -1,0 +1,62 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Cordova CLI
+        run: npm install -g cordova@13
+
+      - name: Install Android command-line tools
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          curl -fSL https://dl.google.com/android/repository/commandlinetools-linux-latest.zip -o /tmp/cmdline-tools.zip
+          unzip -o /tmp/cmdline-tools.zip -d /tmp/cmdline-tools
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest
+          mv /tmp/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/
+          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+
+      - name: Install Android SDK packages
+        env:
+          PATH: ${{ env.ANDROID_SDK_ROOT }}/cmdline-tools/latest/bin:${{ env.PATH }}
+        run: |
+          yes | sdkmanager --sdk_root=${{ env.ANDROID_SDK_ROOT }} "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | sdkmanager --sdk_root=${{ env.ANDROID_SDK_ROOT }} --licenses
+
+      - name: Ensure Android platform added
+        run: |
+          cordova platform rm android || true
+          cordova platform add android@11 || true
+
+      - name: Build Android (release)
+        run: |
+          cordova build android --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: |
+            platforms/android/app/build/outputs/apk/release/*.apk
+            platforms/android/build/outputs/apk/release/*.apk
